@@ -1,0 +1,227 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1.0in]{geometry}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{graphicx}
+
+
+\lstset{
+    frame=tb, % draw a frame at the top and bottom of the code block
+    tabsize=4, % tab space width
+    showstringspaces=false, % don't mark spaces in strings
+    numbers=left, % display line numbers on the left
+    commentstyle=\color{green}, % comment color
+    keywordstyle=\color{blue}, % keyword color
+    stringstyle=\color{red} % string color
+}
+
+
+
+
+
+
+
+\title{Light Stopping Game!}
+\author{Adithya Shastry}
+\date{\today \\ CS342:Project 1}
+\begin{document}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+\section{Overview}
+The goal for this project is to create a simplified version of the light stopping game found in arcades. I decided to replicate this game because I have always loved playing this game at the arcade as a kid and being able to physically build the game, however small my version was, meant a lot to me. The game is meant to allow the user to progress to faster and faster speeds as he or she keeps getting the light to stop on the correct bulb(the green bulb). The end to the game is when the player loses, by landing the light on any of the red bulbs. The game uses two inputs(in the form of two buttons) and six outputs(in the form of bulbs). Of the two buttons, one is used to reset the game, and the other used to stop the light.The ATmega micro controller is used as a medium to allow the communication between the physical pins on the board(hardware) and the internally run code(software).This was done through the use of the GPIO registries,as they exist in the memory of the ATmega chip.In the end, this project produced a fully functioning game that is very fun to play.
+
+\section{Hardware Requirements}
+
+The hardware requirements for the project are as shown in Table \ref{HardReq} below.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Part name}                & \textbf{Amount} \\ \hline
+\textbf{Red Light bulbs}          & \textbf{5}      \\ \hline
+\textbf{Green Light bulb}         & \textbf{1}      \\ \hline
+\textbf{Buttons}                  & \textbf{2}      \\ \hline
+\textbf{ATmega Microcontroller}   & \textbf{1}      \\ \hline
+\textbf{Resistors(High Capacity)} & \textbf{7}      \\ \hline
+\textbf{Long Bread Board}         & \textbf{1}      \\ \hline
+\textbf{Insulated Copper Wires}   & \textbf{20}     \\ \hline
+\end{tabular}
+\caption{Hardware Requirements}
+\label{HardReq}
+\end{table}
+
+\section{Hardware Implementation}
+The Hardware implementation is shown in schematic form in Figure \ref{HardReq}.There are $6.8K\Omega$ resistors underneath the led lights.
+
+\newpage
+\begin{figure}[h!]
+\centering
+\label{HardReq}
+\includegraphics[scale=0.7]{schematic.png}
+\caption{Hardware Implementation}
+\end{figure}
+
+
+
+Some tricky parts of the wiring process are the wiring of the resistors and the buttons.In terms of the wiring of the resistors, it is important to make sure the resistor is strong enough to protect the ATmega chip from short circuiting. The best policy here is to use at least a 220$\Omega$ resistor, since this will restrict the current to a point where the ATmega chip can handle it. Finally, in terms of the buttons, in order to make sure the button is actually working, connect a light bulb to one of the legs, and connect that bulb to a lane with a resistor going to ground to complete the circuit. This way you will know that the button is actually passing current when it is being pressed.The rest is relatively straight forward.
+
+\section{Software Implementation}
+The Code used for this project is shown below:
+\begin{lstlisting}
+#include <avr/io.h> // contains uint8_t and register definitions
+#include <avr/delay.h>  // contains the delay function
+int rest = 300;//The Delay method needs a constant variable
+/*
+ * Lights are controlled by the following pins
+ * PD[2-7] and PB[0]
+ * The Green Light is controlled by PB[4]
+ * 
+ * The Start Game button is controlled by PB[5]
+ * 
+ * Skill Stop is controlled by PB[4]
+ * 
+ * Full Stop is controlled by PB[3]
+ */
+int main(){
+//This is the main method
+init();  
+while(true){
+  //Here we want to see if the start game button is pressed
+  bool startGame=PINB& 0b00100000;
+  if(startGame){
+    cycle(100);
+  }
+}
+cycle(100);
+
+return 0;
+}
+
+
+//TODO: Make a method that cycles through the lights. 
+int cycle(int cycles){
+  //We will set all the necessary pins to output
+  DDRD=0b11111111;//Setting the lights to output
+  DDRB=0b00000000;
+
+  //This allows us to loop through the 
+  //lights one by one in the forward 
+  //direction from 0 to 1
+for(int a=0;a<=cycle;a++){
+  for(int i=2;i<8;i++){
+    //This will go from 0 to 7
+    PORTD=1<<i;
+    int decision=skillStop();
+    if(decision==0){
+      continue;
+    }
+    else if(decision==1){
+      //If the correct button was pressed we want to show that, 
+      //decrement the rest time, and continue
+      setRest(200);
+      _delay_ms(2000);
+      continue;
+    }
+    else if (decision==2){
+      _delay_ms(2000);//If the wrong light was chosen, then we want 
+      //to stop the 
+      return;
+    }
+    else if(cycles<=0){
+      return 3;
+    }
+  }
+
+  //This will loop in the reverse direction
+  for(int i=7;i>=2;i--){
+    // this will go from 7 to 0
+
+    PORTD=1<<i;
+     int decision=skillStop();
+    if(decision==0){
+      continue;
+    }
+    else if(decision==1){
+      //If the correct button was pressed we want to show that, 
+      //decrement the rest time, and continue
+      setRest(80);
+      _delay_ms(2000);
+      continue;
+    }
+    else if (decision==2){
+      _delay_ms(2000);
+      //If the wrong light was chosen, 
+      //then we want to stop the 
+      return;
+    }
+    else if(cycles<=0){
+      return 3;
+    }
+  }
+  
+}
+}
+//TODO skill stop stops the light right at the place
+int skillStop(){
+  //This method will stop the light in its spot
+  //we want to have a while loop here to make sure the board 
+  //registers inputs at any point
+  bool pressed=false;//this will see if the button is pressed
+  int x=0;
+  while(!pressed && x<=rest){
+    _delay_ms(1);
+    pressed=PINB & 0b00010000;
+    x++;
+  }
+  //This loop will break after the button 
+  //has been pressed or if the rest period has expired
+  if(x==0){
+    //We will handle if the rest period has expired first
+    //In this case we want to break
+    return 0;
+  }
+  else if(pressed &&(PORTD & 0b00010000)){
+    //Here we want to handle if the button has been pressed on the 
+    //correct spot
+    return 1;//We will handle this in the cycle method
+  }
+  else if(pressed &&!(PORTD & 0b00010000)){
+    //If the button was pressed, but it was the wrong light
+    return 2;
+  }
+  }
+  else{
+    return 0;
+  }
+}
+
+
+//Rest Decrement
+
+void setRest(int decrement){
+  //int decrement will set the decrement factor
+  
+  if(rest<=20){
+    rest=20;
+  }
+  else{
+    rest-=20;
+  }
+}
+\end{lstlisting}
+
+\section{Testing and Possible Further Improvements}
+\subsection{Testing}
+In order to test my little arcade game, I got many of my friends to play the game and try to win. This for the most part worked out well, but I did have some issues during this process because there were some logical bugs in my code that caused the game not to perform correctly. These were relatively easy fixes once they were observed.
+
+\subsection{Further Improvements}
+One of the things I could not implement was a slow stop button. The idea with this button was to allow the light to slow to a stop instead of stop immediately on the bulb. I wanted to include something like this because the arcade machines usually have a feature like this that the player can use. 
+
+\section{Conclusion}
+Overall, this project was a great way to understand and interact with the GPIO, physically and through the code, because it allowed me to create a cool project that people can actually play!
+\end{document}
+
+
